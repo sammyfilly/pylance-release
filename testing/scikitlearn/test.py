@@ -226,7 +226,7 @@ for usecol in train.columns.tolist()[1:-1]:
 
     train[usecol] = train[usecol].astype('str')
     test[usecol] = test[usecol].astype('str')
-    
+
     #Fit LabelEncoder
     le = LabelEncoder().fit(
             np.unique(train[usecol].unique().tolist()+
@@ -267,7 +267,7 @@ for usecol in train.columns.tolist()[1:-1]:
 
     del le, agg_tr, agg_te, agg, usecol
     gc.collect()
-          
+
 y_train = np.array(train['HasDetections'])
 train_ids = train.index
 test_ids  = test.index
@@ -311,14 +311,14 @@ print('\nLightGBM\n')
 
 for train_index, test_index in skf.split(train_ids, y_train):
     
-    print('Fold {}\n'.format(counter + 1))
-    
+    print(f'Fold {counter + 1}\n')
+
     train = load_npz('train.npz')
     X_fit = vstack([train[train_index[i*m:(i+1)*m]] for i in range(train_index.shape[0] // m + 1)])
     X_val = vstack([train[test_index[i*m:(i+1)*m]]  for i in range(test_index.shape[0] //  m + 1)])
     X_fit, X_val = csr_matrix(X_fit, dtype='float32'), csr_matrix(X_val, dtype='float32')
     y_fit, y_val = y_train[train_index], y_train[test_index]
-    
+
     del train
     gc.collect()
 
@@ -329,42 +329,42 @@ for train_index, test_index in skf.split(train_ids, y_train):
                                    colsample_bytree=0.28,
                                    objective='binary', 
                                    n_jobs=-1)
-                                   
+
     #xgb_model = xgb.XGBClassifier(max_depth=6,
     #                              n_estimators=30000,
     #                              colsample_bytree=0.2,
     #                              learning_rate=0.1,
     #                              objective='binary:logistic', 
     #                              n_jobs=-1)
-    
-                               
+
+
     lgb_model.fit(X_fit, y_fit, eval_metric='auc', 
                   eval_set=[(X_val, y_val)], 
                   verbose=100, early_stopping_rounds=100)
-                  
+
     #xgb_model.fit(X_fit, y_fit, eval_metric='auc', 
     #              eval_set=[(X_val, y_val)], 
     #              verbose=1000, early_stopping_rounds=300)
 
     lgb_train_result[test_index] += lgb_model.predict_proba(X_val)[:,1]
     #xgb_train_result[test_index] += xgb_model.predict_proba(X_val)[:,1]
-    
+
     del X_fit, X_val, y_fit, y_val, train_index, test_index
     gc.collect()
-    
+
     test = load_npz('test.npz')
     test = csr_matrix(test, dtype='float32')
     lgb_test_result += lgb_model.predict_proba(test)[:,1]
     #xgb_test_result += xgb_model.predict_proba(test)[:,1]
     counter += 1
-    
+
     del test
     gc.collect()
     
     #Stop fitting to prevent time limit error
     #if counter == 3 : break
 
-print('\nLigthGBM VAL AUC Score: {}'.format(roc_auc_score(y_train, lgb_train_result)))
+print(f'\nLigthGBM VAL AUC Score: {roc_auc_score(y_train, lgb_train_result)}')
 #print('\nXGBoost VAL AUC Score: {}'.format(roc_auc_score(y_train, xgb_train_result)))
 
 submission = pd.read_csv('../input/sample_submission.csv')
